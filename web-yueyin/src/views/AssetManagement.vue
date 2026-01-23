@@ -1,0 +1,531 @@
+<template>
+  <div class="asset-management">
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <span>资源图片管理</span>
+          <el-button type="primary" @click="showUploadDialog = true">
+            <el-icon><Plus /></el-icon>
+            上传图片
+          </el-button>
+        </div>
+      </template>
+      
+      <!-- 搜索和筛选栏 -->
+      <div class="search-bar">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索文件名或描述"
+          style="width: 300px; margin-right: 10px;"
+          @input="handleSearch"
+          clearable
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-select
+          v-model="selectedCategory"
+          placeholder="选择分类"
+          style="width: 200px; margin-right: 10px;"
+          clearable
+          @change="handleSearch"
+        >
+          <el-option label="全部" value="" />
+          <el-option label="启动页" value="启动页" />
+          <el-option label="首页" value="首页" />
+          <el-option label="其他" value="other" />
+        </el-select>
+        <el-button @click="handleSearch">搜索</el-button>
+        <el-button @click="resetSearch">重置</el-button>
+      </div>
+      
+      <!-- 图片列表 -->
+      <el-table :data="imageList" style="width: 100%" v-loading="loading">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column label="预览" width="120">
+          <template #default="scope">
+            <el-image
+              :src="scope.row.fileUrl"
+              :preview-src-list="[scope.row.fileUrl]"
+              fit="cover"
+              style="width: 100px; height: 100px; cursor: pointer;"
+              :lazy="true"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column prop="originalName" label="文件名" width="200" />
+        <el-table-column prop="category" label="分类" width="100">
+          <template #default="scope">
+            <el-tag>{{ scope.row.category || 'other' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="描述" show-overflow-tooltip />
+        <el-table-column prop="fileSize" label="文件大小" width="120">
+          <template #default="scope">
+            {{ formatFileSize(scope.row.fileSize) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="上传时间" width="180">
+          <template #default="scope">
+            {{ formatDateTime(scope.row.createTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="scope">
+            <el-button size="small" type="primary" @click="editImage(scope.row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteImage(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      
+      <!-- 分页 -->
+      <div class="pagination">
+        <el-pagination
+          :current-page="pagination.page"
+          :page-size="pagination.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="pagination.total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
+    </el-card>
+    
+    <!-- 上传图片对话框 -->
+    <el-dialog
+      v-model="showUploadDialog"
+      title="上传图片"
+      width="600px"
+      @close="resetUploadForm"
+    >
+      <el-form :model="uploadForm" :rules="uploadRules" ref="uploadFormRef" label-width="100px">
+        <el-form-item label="选择图片" prop="file">
+          <el-upload
+            class="image-uploader"
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="handleFileChange"
+            :before-upload="beforeUpload"
+            accept="image/*"
+            drag
+          >
+            <img v-if="uploadForm.previewUrl" :src="uploadForm.previewUrl" class="image-preview" />
+            <el-icon v-else class="image-uploader-icon"><Plus /></el-icon>
+            <div class="upload-tip">点击或拖拽图片到此处上传</div>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="分类" prop="category">
+          <el-select v-model="uploadForm.category" placeholder="请选择分类" style="width: 100%;">
+            <el-option label="启动页" value="启动页" />
+            <el-option label="首页" value="首页" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="描述" prop="description">
+          <el-input
+            v-model="uploadForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入图片描述（可选）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleUpload" :loading="uploading">上传</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 编辑图片对话框 -->
+    <el-dialog
+      v-model="showEditDialog"
+      title="编辑图片信息"
+      width="600px"
+    >
+      <el-form :model="editForm" :rules="editRules" ref="editFormRef" label-width="100px">
+        <el-form-item label="预览">
+          <el-image
+            :src="editForm.fileUrl"
+            fit="cover"
+            style="width: 200px; height: 200px;"
+          />
+        </el-form-item>
+        <el-form-item label="文件名">
+          <el-input v-model="editForm.originalName" disabled />
+        </el-form-item>
+        <el-form-item label="分类" prop="category">
+          <el-select v-model="editForm.category" placeholder="请选择分类" style="width: 100%;">
+            <el-option label="启动页" value="启动页" />
+            <el-option label="首页" value="首页" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="描述" prop="description">
+          <el-input
+            v-model="editForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入图片描述"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleUpdate" :loading="updating">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Search } from '@element-plus/icons-vue'
+import { assetApi } from '@/api'
+
+const loading = ref(false)
+const uploading = ref(false)
+const updating = ref(false)
+const showUploadDialog = ref(false)
+const showEditDialog = ref(false)
+const searchKeyword = ref('')
+const selectedCategory = ref('')
+
+const imageList = ref([])
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const uploadForm = ref({
+  file: null,
+  previewUrl: '',
+  category: '',
+  description: ''
+})
+
+const editForm = ref({
+  id: null,
+  originalName: '',
+  fileUrl: '',
+  category: '',
+  description: ''
+})
+
+const uploadFormRef = ref(null)
+const editFormRef = ref(null)
+
+const uploadRules = {
+  file: [{ required: true, message: '请选择图片文件', trigger: 'change' }],
+  category: [{ required: true, message: '请选择分类', trigger: 'change' }]
+}
+
+const editRules = {
+  category: [{ required: true, message: '请选择分类', trigger: 'change' }]
+}
+
+// 加载图片列表
+const loadImageList = async () => {
+  loading.value = true
+  try {
+    const response = await assetApi.getImageList({
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize,
+      category: selectedCategory.value || undefined,
+      keyword: searchKeyword.value || undefined
+    })
+    
+    if (response.code === 200) {
+      imageList.value = response.data.records || []
+      pagination.value.total = response.data.total || 0
+    } else {
+      ElMessage.error(response.msg || '加载图片列表失败')
+    }
+  } catch (error) {
+    console.error('加载图片列表失败:', error)
+    ElMessage.error('加载图片列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  pagination.value.page = 1
+  loadImageList()
+}
+
+// 重置搜索
+const resetSearch = () => {
+  searchKeyword.value = ''
+  selectedCategory.value = ''
+  handleSearch()
+}
+
+// 分页大小改变
+const handleSizeChange = (size) => {
+  pagination.value.pageSize = size
+  pagination.value.page = 1
+  loadImageList()
+}
+
+// 页码改变
+const handlePageChange = (page) => {
+  pagination.value.page = page
+  loadImageList()
+}
+
+// 文件选择
+const handleFileChange = (file) => {
+  uploadForm.value.file = file.raw
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    uploadForm.value.previewUrl = e.target.result
+  }
+  reader.readAsDataURL(file.raw)
+}
+
+// 上传前验证
+const beforeUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt10M = file.size / 1024 / 1024 < 10
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过 10MB!')
+    return false
+  }
+  return false // 阻止自动上传
+}
+
+// 上传图片
+const handleUpload = async () => {
+  if (!uploadFormRef.value) return
+  
+  await uploadFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    if (!uploadForm.value.file) {
+      ElMessage.error('请选择图片文件')
+      return
+    }
+    
+    uploading.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', uploadForm.value.file)
+      if (uploadForm.value.category) {
+        formData.append('category', uploadForm.value.category)
+      }
+      if (uploadForm.value.description) {
+        formData.append('description', uploadForm.value.description)
+      }
+      
+      const response = await assetApi.uploadImage(formData)
+      
+      if (response.code === 200) {
+        ElMessage.success('上传成功')
+        showUploadDialog.value = false
+        resetUploadForm()
+        loadImageList()
+      } else {
+        ElMessage.error(response.msg || '上传失败')
+      }
+    } catch (error) {
+      console.error('上传图片失败:', error)
+      ElMessage.error('上传失败')
+    } finally {
+      uploading.value = false
+    }
+  })
+}
+
+// 重置上传表单
+const resetUploadForm = () => {
+  uploadForm.value = {
+    file: null,
+    previewUrl: '',
+    category: '',
+    description: ''
+  }
+  if (uploadFormRef.value) {
+    uploadFormRef.value.resetFields()
+  }
+}
+
+// 编辑图片
+const editImage = (row) => {
+  editForm.value = {
+    id: row.id,
+    originalName: row.originalName,
+    fileUrl: row.fileUrl,
+    category: row.category || '',
+    description: row.description || ''
+  }
+  showEditDialog.value = true
+}
+
+// 更新图片信息
+const handleUpdate = async () => {
+  if (!editFormRef.value) return
+  
+  await editFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    updating.value = true
+    try {
+      const params = {}
+      if (editForm.value.category) {
+        params.category = editForm.value.category
+      }
+      if (editForm.value.description !== undefined) {
+        params.description = editForm.value.description
+      }
+      
+      const response = await assetApi.updateImage(editForm.value.id, params)
+      
+      if (response.code === 200) {
+        ElMessage.success('更新成功')
+        showEditDialog.value = false
+        loadImageList()
+      } else {
+        ElMessage.error(response.msg || '更新失败')
+      }
+    } catch (error) {
+      console.error('更新图片信息失败:', error)
+      ElMessage.error('更新失败')
+    } finally {
+      updating.value = false
+    }
+  })
+}
+
+// 删除图片
+const deleteImage = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除图片 "${row.originalName}" 吗？此操作将同时删除OSS中的文件，且不可恢复！`,
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const response = await assetApi.deleteImage(row.id)
+    
+    if (response.code === 200) {
+      ElMessage.success('删除成功')
+      loadImageList()
+    } else {
+      ElMessage.error(response.msg || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除图片失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// 格式化日期时间
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return ''
+  const date = new Date(dateTime)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+onMounted(() => {
+  loadImageList()
+})
+</script>
+
+<style scoped>
+.asset-management {
+  padding: 0;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-bar {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.image-uploader {
+  width: 100%;
+}
+
+.image-uploader :deep(.el-upload) {
+  width: 100%;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.image-uploader :deep(.el-upload:hover) {
+  border-color: #409EFF;
+}
+
+.image-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 100%;
+  height: 178px;
+  text-align: center;
+  line-height: 178px;
+}
+
+.image-preview {
+  width: 100%;
+  height: 178px;
+  object-fit: cover;
+  display: block;
+}
+
+.upload-tip {
+  text-align: center;
+  color: #606266;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>
+
