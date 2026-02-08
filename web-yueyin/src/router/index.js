@@ -1,11 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Layout from '@/components/Layout.vue'
-import Dashboard from '@/views/Dashboard.vue'
 import RegionManagement from '@/views/RegionManagement.vue'
-import ChatManagement from '@/views/ChatManagement.vue'
-import UserManagement from '@/views/UserManagement.vue'
-import MessageManagement from '@/views/MessageManagement.vue'
 import AssetManagement from '@/views/AssetManagement.vue'
+import CantoneseTestQuestionManagement from '@/views/CantoneseTestQuestionManagement.vue'
 
 const routes = [
   {
@@ -14,8 +11,7 @@ const routes = [
     children: [
       {
         path: '',
-        name: 'Dashboard',
-        component: Dashboard
+        redirect: '/regions'
       },
       {
         path: '/regions',
@@ -23,24 +19,14 @@ const routes = [
         component: RegionManagement
       },
       {
-        path: '/chats',
-        name: 'ChatManagement',
-        component: ChatManagement
-      },
-      {
-        path: '/users',
-        name: 'UserManagement',
-        component: UserManagement
-      },
-      {
-        path: '/messages',
-        name: 'MessageManagement',
-        component: MessageManagement
-      },
-      {
         path: '/assets',
         name: 'AssetManagement',
         component: AssetManagement
+      },
+      {
+        path: '/cantonese-test/questions',
+        name: 'CantoneseTestQuestionManagement',
+        component: CantoneseTestQuestionManagement
       }
     ]
   }

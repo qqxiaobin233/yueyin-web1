@@ -209,5 +209,36 @@ export const assetApi = {
   }
 }
 
+// 粤语测试题目管理API
+export const cantoneseTestApi = {
+  importQuestions(formData) {
+    return api.post('/cantonese-test/questions/import', formData)
+  },
+
+  pageQuestions(params) {
+    return api.get('/cantonese-test/questions/page', { params })
+  },
+
+  getQuestionDetail(id) {
+    return api.get(`/cantonese-test/questions/${id}`)
+  },
+
+  updateQuestion(id, data) {
+    return api.put(`/cantonese-test/questions/${id}`, data)
+  },
+
+  deleteQuestion(id) {
+    return api.delete(`/cantonese-test/questions/${id}`)
+  },
+
+  batchGenerateListeningAudio(params) {
+    return api.post('/cantonese-test/audio/tts/batch', null, { params })
+  },
+
+  regenerateListeningAudio(params) {
+    return api.post('/cantonese-test/audio/tts/batch', null, { params: { ...(params || {}), force: true, onlyMissing: false } })
+  }
+}
+
 
 export default api

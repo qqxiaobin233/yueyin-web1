@@ -12,29 +12,17 @@
         text-color="#bfcbd9"
         active-text-color="#409EFF"
       >
-        <el-menu-item index="/">
-          <el-icon><House /></el-icon>
-          <span>仪表盘</span>
-        </el-menu-item>
         <el-menu-item index="/regions">
           <el-icon><Location /></el-icon>
           <span>地区管理</span>
         </el-menu-item>
-        <el-menu-item index="/chats">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>对话管理</span>
-        </el-menu-item>
-        <el-menu-item index="/users">
-          <el-icon><User /></el-icon>
-          <span>用户管理</span>
-        </el-menu-item>
-        <el-menu-item index="/messages">
-          <el-icon><Message /></el-icon>
-          <span>消息管理</span>
-        </el-menu-item>
         <el-menu-item index="/assets">
           <el-icon><Picture /></el-icon>
           <span>资源管理</span>
+        </el-menu-item>
+        <el-menu-item index="/cantonese-test/questions">
+          <el-icon><Document /></el-icon>
+          <span>粤语测试题目</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -59,18 +47,15 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { House, Location, ChatDotRound, User, Message, Picture } from '@element-plus/icons-vue'
+import { Location, Picture, Document } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
 const getPageTitle = () => {
   const titleMap = {
-    '/': '仪表盘',
     '/regions': '地区管理',
-    '/chats': '对话管理',
-    '/users': '用户管理',
-    '/messages': '消息管理',
-    '/assets': '资源管理'
+    '/assets': '资源管理',
+    '/cantonese-test/questions': '粤语测试题目'
   }
   return titleMap[route.path] || '管理后台'
 }
