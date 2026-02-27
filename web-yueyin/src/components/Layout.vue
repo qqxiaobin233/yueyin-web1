@@ -24,6 +24,16 @@
           <el-icon><Document /></el-icon>
           <span>粤语测试题目</span>
         </el-menu-item>
+
+        <el-menu-item index="/game/questions/import">
+          <el-icon><Tickets /></el-icon>
+          <span>游戏题库导入</span>
+        </el-menu-item>
+
+        <el-menu-item index="/game/scene-dialog/import">
+          <el-icon><Tickets /></el-icon>
+          <span>场景对话导入</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
@@ -47,7 +57,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Location, Picture, Document } from '@element-plus/icons-vue'
+import { Location, Picture, Document, Tickets } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -55,7 +65,9 @@ const getPageTitle = () => {
   const titleMap = {
     '/regions': '地区管理',
     '/assets': '资源管理',
-    '/cantonese-test/questions': '粤语测试题目'
+    '/cantonese-test/questions': '粤语测试题目',
+    '/game/questions/import': '游戏题库导入',
+    '/game/scene-dialog/import': '场景对话导入'
   }
   return titleMap[route.path] || '管理后台'
 }

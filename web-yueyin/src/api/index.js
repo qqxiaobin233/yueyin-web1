@@ -206,6 +206,15 @@ export const assetApi = {
     return api.put(`/assets/images/${id}`, null, {
       params: params
     })
+  },
+
+  // 替换图片文件（同时删除OSS中的旧文件）
+  replaceImage(id, formData) {
+    return api.post(`/assets/images/${id}/replace`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }
 
@@ -231,12 +240,87 @@ export const cantoneseTestApi = {
     return api.delete(`/cantonese-test/questions/${id}`)
   },
 
+  batchDeleteQuestions(ids) {
+    return api.delete('/cantonese-test/questions/batch', { data: ids })
+  },
+
   batchGenerateListeningAudio(params) {
     return api.post('/cantonese-test/audio/tts/batch', null, { params })
   },
 
   regenerateListeningAudio(params) {
     return api.post('/cantonese-test/audio/tts/batch', null, { params: { ...(params || {}), force: true, onlyMissing: false } })
+  }
+}
+
+// 粤趣学习（游戏化模块）管理端API
+export const gameAdminApi = {
+  listScenes() {
+    return api.get('/game/admin/scenes')
+  },
+
+  pageGameQuestions(params) {
+    return api.get('/game/admin/questions/page', { params })
+  },
+
+  pageSceneDialogs(params) {
+    return api.get('/game/admin/scene-dialog/page', { params })
+  },
+
+  importGameQuestions(formData) {
+    return api.post('/game/admin/questions/import', formData)
+  },
+
+  updateQuestionImageUrls(params) {
+    return api.post('/game/admin/questions/image-urls/update', null, { params })
+  },
+
+  batchGenerateGameQuestionAudio(params) {
+    return api.post('/game/admin/questions/tts/batch', null, { params })
+  },
+
+  regenerateGameQuestionAudio(params) {
+    return api.post('/game/admin/questions/tts/batch', null, { params: { ...(params || {}), force: true, onlyMissing: false } })
+  },
+
+  batchGenerateGameQuestionAudioByIds(params) {
+    return api.post('/game/admin/questions/tts/by-ids', {
+      questionIds: (params && params.questionIds) || [],
+      onlyMissing: params && typeof params.onlyMissing === 'boolean' ? params.onlyMissing : true,
+      force: params && typeof params.force === 'boolean' ? params.force : false
+    })
+  },
+
+  regenerateGameQuestionAudioByIds(params) {
+    return api.post('/game/admin/questions/tts/by-ids', {
+      questionIds: (params && params.questionIds) || [],
+      onlyMissing: false,
+      force: true
+    })
+  },
+
+  deleteGameQuestionsByIds(params) {
+    return api.post('/game/admin/questions/delete/by-ids', {
+      questionIds: (params && params.questionIds) || []
+    })
+  },
+
+  importSceneDialogs(formData) {
+    return api.post('/game/admin/scene-dialog/import', formData)
+  },
+
+  batchGenerateSceneDialogAudio(params) {
+    return api.post('/game/admin/scene-dialog/tts/batch', null, { params })
+  },
+
+  regenerateSceneDialogAudio(params) {
+    return api.post('/game/admin/scene-dialog/tts/batch', null, { params: { ...(params || {}), force: true, onlyMissing: false } })
+  },
+
+  deleteSceneDialogsByIds(params) {
+    return api.post('/game/admin/scene-dialog/delete/by-ids', {
+      dialogIds: (params && params.dialogIds) || []
+    })
   }
 }
 

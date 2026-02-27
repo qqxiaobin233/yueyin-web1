@@ -27,6 +27,14 @@
           >
             重新生成音频
           </el-button>
+
+          <el-button
+            type="danger"
+            :disabled="!selectedIds.length"
+            @click="handleBatchDelete"
+          >
+            批量删除
+          </el-button>
         </div>
 
         <div class="toolbar-right">
@@ -52,7 +60,14 @@
     </el-card>
 
     <el-card>
-      <el-table :data="tableData" v-loading="loading" border>
+      <el-table
+        ref="tableRef"
+        :data="tableData"
+        v-loading="loading"
+        border
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="48" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="sourceQuestionId" label="题目ID" width="120" />
         <el-table-column prop="level" label="等级" width="90" />
@@ -178,6 +193,9 @@ const pagination = reactive({
 })
 
 const tableData = ref([])
+
+const tableRef = ref(null)
+const selectedIds = ref([])
 
 const viewDialog = reactive({
   visible: false,
@@ -461,6 +479,37 @@ const handleDelete = async row => {
   } catch (e) {
     if (e === 'cancel') return
     ElMessage.error(e.message || '删除失败')
+  }
+}
+
+const handleSelectionChange = rows => {
+  selectedIds.value = (rows || []).map(r => r.id).filter(Boolean)
+}
+
+const handleBatchDelete = async () => {
+  if (!selectedIds.value.length) return
+
+  try {
+    await ElMessageBox.confirm(`确认删除选中的${selectedIds.value.length}道题目吗？`, '提示', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch (e) {
+    return
+  }
+
+  try {
+    const res = await cantoneseTestApi.batchDeleteQuestions(selectedIds.value)
+    if (res?.code !== 200) {
+      throw new Error(res?.message || '批量删除失败')
+    }
+    ElMessage.success('批量删除成功')
+    selectedIds.value = []
+    tableRef.value?.clearSelection?.()
+    await loadData()
+  } catch (e) {
+    ElMessage.error(e.message || '批量删除失败')
   }
 }
 

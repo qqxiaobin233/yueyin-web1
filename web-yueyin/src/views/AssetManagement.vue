@@ -34,6 +34,7 @@
           <el-option label="全部" value="" />
           <el-option label="启动页" value="启动页" />
           <el-option label="首页" value="首页" />
+          <el-option label="游戏介绍界面" value="游戏介绍界面" />
           <el-option label="其他" value="other" />
         </el-select>
         <el-button @click="handleSearch">搜索</el-button>
@@ -121,6 +122,7 @@
           <el-select v-model="uploadForm.category" placeholder="请选择分类" style="width: 100%;">
             <el-option label="启动页" value="启动页" />
             <el-option label="首页" value="首页" />
+            <el-option label="游戏介绍界面" value="游戏介绍界面" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
@@ -144,6 +146,7 @@
       v-model="showEditDialog"
       title="编辑图片信息"
       width="600px"
+      @close="resetEditForm"
     >
       <el-form :model="editForm" :rules="editRules" ref="editFormRef" label-width="100px">
         <el-form-item label="预览">
@@ -153,13 +156,29 @@
             style="width: 200px; height: 200px;"
           />
         </el-form-item>
+        <el-form-item label="替换图片">
+          <el-upload
+            class="image-uploader"
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="handleEditFileChange"
+            :before-upload="beforeUpload"
+            accept="image/*"
+            drag
+          >
+            <img v-if="editForm.previewUrl" :src="editForm.previewUrl" class="image-preview" />
+            <el-icon v-else class="image-uploader-icon"><Plus /></el-icon>
+            <div class="upload-tip">点击或拖拽图片到此处替换</div>
+          </el-upload>
+        </el-form-item>
         <el-form-item label="文件名">
-          <el-input v-model="editForm.originalName" disabled />
+          <el-input v-model="editForm.originalName" />
         </el-form-item>
         <el-form-item label="分类" prop="category">
           <el-select v-model="editForm.category" placeholder="请选择分类" style="width: 100%;">
             <el-option label="启动页" value="启动页" />
             <el-option label="首页" value="首页" />
+            <el-option label="游戏介绍界面" value="游戏介绍界面" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
@@ -212,6 +231,8 @@ const editForm = ref({
   id: null,
   originalName: '',
   fileUrl: '',
+  file: null,
+  previewUrl: '',
   category: '',
   description: ''
 })
@@ -226,6 +247,26 @@ const uploadRules = {
 
 const editRules = {
   category: [{ required: true, message: '请选择分类', trigger: 'change' }]
+}
+
+const resetEditForm = () => {
+  editForm.value.file = null
+  editForm.value.previewUrl = ''
+  if (editFormRef.value) {
+    editFormRef.value.clearValidate()
+  }
+}
+
+// 编辑替换文件选择
+const handleEditFileChange = (file) => {
+  editForm.value.file = file.raw
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    editForm.value.previewUrl = e.target.result
+    // 预览图优先展示替换后的
+    editForm.value.fileUrl = e.target.result
+  }
+  reader.readAsDataURL(file.raw)
 }
 
 // 加载图片列表
@@ -366,6 +407,8 @@ const editImage = (row) => {
     id: row.id,
     originalName: row.originalName,
     fileUrl: row.fileUrl,
+    file: null,
+    previewUrl: '',
     category: row.category || '',
     description: row.description || ''
   }
@@ -382,22 +425,41 @@ const handleUpdate = async () => {
     updating.value = true
     try {
       const params = {}
+      if (editForm.value.originalName) {
+        params.originalName = editForm.value.originalName
+      }
       if (editForm.value.category) {
         params.category = editForm.value.category
       }
       if (editForm.value.description !== undefined) {
         params.description = editForm.value.description
       }
-      
+
+      // 先更新文字信息
       const response = await assetApi.updateImage(editForm.value.id, params)
-      
-      if (response.code === 200) {
-        ElMessage.success('更新成功')
-        showEditDialog.value = false
-        loadImageList()
-      } else {
+      if (response.code !== 200) {
         ElMessage.error(response.msg || '更新失败')
+        return
       }
+
+      // 如选择了替换图片，则调用替换接口（后端会删旧OSS+更新DB）
+      if (editForm.value.file) {
+        const fd = new FormData()
+        fd.append('file', editForm.value.file)
+        if (editForm.value.originalName) fd.append('originalName', editForm.value.originalName)
+        if (editForm.value.category) fd.append('category', editForm.value.category)
+        if (editForm.value.description !== undefined) fd.append('description', editForm.value.description)
+
+        const rep = await assetApi.replaceImage(editForm.value.id, fd)
+        if (rep.code !== 200) {
+          ElMessage.error(rep.msg || '替换失败')
+          return
+        }
+      }
+      
+      ElMessage.success('更新成功')
+      showEditDialog.value = false
+      loadImageList()
     } catch (error) {
       console.error('更新图片信息失败:', error)
       ElMessage.error('更新失败')
