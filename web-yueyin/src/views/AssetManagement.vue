@@ -48,12 +48,14 @@
         <el-table-column label="预览" width="120">
           <template #default="scope">
             <el-image
+              v-if="String(scope.row.contentType || '').startsWith('image/')"
               :src="scope.row.fileUrl"
               :preview-src-list="[scope.row.fileUrl]"
               fit="cover"
               style="width: 100px; height: 100px; cursor: pointer;"
               :lazy="true"
             />
+            <el-link v-else :href="scope.row.fileUrl" target="_blank" type="primary">下载</el-link>
           </template>
         </el-table-column>
         <el-table-column prop="originalName" label="文件名" width="200" />
@@ -110,7 +112,7 @@
             :show-file-list="false"
             :on-change="handleFileChange"
             :before-upload="beforeUpload"
-            accept="image/*"
+            accept="image/*,.glb"
             drag
           >
             <img v-if="uploadForm.previewUrl" :src="uploadForm.previewUrl" class="image-preview" />
@@ -151,10 +153,12 @@
       <el-form :model="editForm" :rules="editRules" ref="editFormRef" label-width="100px">
         <el-form-item label="预览">
           <el-image
+            v-if="String(editForm.contentType || '').startsWith('image/')"
             :src="editForm.fileUrl"
             fit="cover"
             style="width: 200px; height: 200px;"
           />
+          <el-link v-else :href="editForm.fileUrl" target="_blank" type="primary">下载</el-link>
         </el-form-item>
         <el-form-item label="替换图片">
           <el-upload
@@ -163,7 +167,7 @@
             :show-file-list="false"
             :on-change="handleEditFileChange"
             :before-upload="beforeUpload"
-            accept="image/*"
+            accept="image/*,.glb"
             drag
           >
             <img v-if="editForm.previewUrl" :src="editForm.previewUrl" class="image-preview" />
@@ -190,6 +194,32 @@
             placeholder="请输入图片描述"
           />
         </el-form-item>
+
+        <el-form-item v-if="isEditingGlb" label="3D展示配置">
+          <el-collapse v-model="glbPanelOpen">
+            <el-collapse-item name="glb" title="3D展示配置">
+              <el-form label-width="140px">
+                <el-form-item label="左偏移 model_left (rpx)">
+                  <el-slider v-model="glbConfig.model_left" :min="-200" :max="400" :step="1" show-input />
+                </el-form-item>
+                <el-form-item label="下偏移 model_bottom (rpx)">
+                  <el-slider v-model="glbConfig.model_bottom" :min="-200" :max="400" :step="1" show-input />
+                </el-form-item>
+                <el-form-item label="初始旋转 model_rotation (度)">
+                  <el-slider v-model="glbConfig.model_rotation" :min="-180" :max="180" :step="1" show-input />
+                </el-form-item>
+                <el-form-item label="亮度 model_brightness">
+                  <el-slider v-model="glbConfig.model_brightness" :min="0.1" :max="2.0" :step="0.1" show-input />
+                </el-form-item>
+
+                <el-form-item>
+                  <el-button @click="resetGlbConfig">重置默认值</el-button>
+                  <el-button type="primary" :loading="glbSaving" @click="saveGlbConfig">保存3D配置</el-button>
+                </el-form-item>
+              </el-form>
+            </el-collapse-item>
+          </el-collapse>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showEditDialog = false">取消</el-button>
@@ -203,7 +233,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
-import { assetApi } from '@/api'
+import { assetApi, glbConfigApi } from '@/api'
 
 const loading = ref(false)
 const uploading = ref(false)
@@ -220,6 +250,68 @@ const pagination = ref({
   total: 0
 })
 
+const isEditingGlb = ref(false)
+const glbPanelOpen = ref([])
+const glbSaving = ref(false)
+const glbConfig = ref({
+  model_left: 20,
+  model_bottom: 30,
+  model_rotation: 0,
+  model_brightness: 0.8
+})
+
+const resetGlbConfig = () => {
+  glbConfig.value = {
+    model_left: 20,
+    model_bottom: 30,
+    model_rotation: 0,
+    model_brightness: 0.8
+  }
+}
+
+const loadGlbConfig = async (assetImageId) => {
+  if (!assetImageId) return
+  try {
+    const res = await glbConfigApi.getByAssetImageId(assetImageId)
+    if (res.code === 200 && res.data) {
+      glbConfig.value = {
+        model_left: res.data.modelLeft ?? 20,
+        model_bottom: res.data.modelBottom ?? 30,
+        model_rotation: res.data.modelRotation ?? 0,
+        model_brightness: res.data.modelBrightness ?? 0.8
+      }
+    } else {
+      resetGlbConfig()
+    }
+  } catch (e) {
+    resetGlbConfig()
+  }
+}
+
+const saveGlbConfig = async () => {
+  if (!editForm.value.id) return
+  glbSaving.value = true
+  try {
+    const payload = {
+      modelLeft: glbConfig.value.model_left,
+      modelBottom: glbConfig.value.model_bottom,
+      modelRotation: glbConfig.value.model_rotation,
+      modelBrightness: glbConfig.value.model_brightness
+    }
+    const res = await glbConfigApi.saveByAssetImageId(editForm.value.id, payload)
+    if (res.code === 200) {
+      ElMessage.success('3D配置已保存')
+      await loadGlbConfig(editForm.value.id)
+    } else {
+      ElMessage.error(res.msg || res.message || '保存失败')
+    }
+  } catch (e) {
+    ElMessage.error('保存失败')
+  } finally {
+    glbSaving.value = false
+  }
+}
+
 const uploadForm = ref({
   file: null,
   previewUrl: '',
@@ -231,6 +323,7 @@ const editForm = ref({
   id: null,
   originalName: '',
   fileUrl: '',
+  contentType: '',
   file: null,
   previewUrl: '',
   category: '',
@@ -252,6 +345,8 @@ const editRules = {
 const resetEditForm = () => {
   editForm.value.file = null
   editForm.value.previewUrl = ''
+  isEditingGlb.value = false
+  glbPanelOpen.value = []
   if (editFormRef.value) {
     editFormRef.value.clearValidate()
   }
@@ -260,13 +355,19 @@ const resetEditForm = () => {
 // 编辑替换文件选择
 const handleEditFileChange = (file) => {
   editForm.value.file = file.raw
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    editForm.value.previewUrl = e.target.result
-    // 预览图优先展示替换后的
-    editForm.value.fileUrl = e.target.result
+  if (file?.raw?.type && String(file.raw.type).startsWith('image/')) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      editForm.value.previewUrl = e.target.result
+      // 预览图优先展示替换后的
+      editForm.value.fileUrl = e.target.result
+      editForm.value.contentType = file.raw.type
+    }
+    reader.readAsDataURL(file.raw)
+  } else {
+    editForm.value.previewUrl = ''
+    editForm.value.contentType = file?.raw?.type || 'model/gltf-binary'
   }
-  reader.readAsDataURL(file.raw)
 }
 
 // 加载图片列表
@@ -323,24 +424,33 @@ const handlePageChange = (page) => {
 // 文件选择
 const handleFileChange = (file) => {
   uploadForm.value.file = file.raw
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    uploadForm.value.previewUrl = e.target.result
+  if (file?.raw?.type && String(file.raw.type).startsWith('image/')) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      uploadForm.value.previewUrl = e.target.result
+    }
+    reader.readAsDataURL(file.raw)
+  } else {
+    uploadForm.value.previewUrl = ''
   }
-  reader.readAsDataURL(file.raw)
 }
 
 // 上传前验证
 const beforeUpload = (file) => {
-  const isImage = file.type.startsWith('image/')
-  const isLt10M = file.size / 1024 / 1024 < 10
+  const name = String(file?.name || '').toLowerCase()
+  const isGlb = name.endsWith('.glb')
+  const isImage = file.type && String(file.type).startsWith('image/')
+  const isAllowed = isImage || isGlb
 
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件!')
+  if (!isAllowed) {
+    ElMessage.error('只能上传图片或glb文件!')
     return false
   }
-  if (!isLt10M) {
-    ElMessage.error('图片大小不能超过 10MB!')
+
+  const maxMb = isGlb ? 50 : 10
+  const isLtMax = file.size / 1024 / 1024 < maxMb
+  if (!isLtMax) {
+    ElMessage.error(`文件大小不能超过 ${maxMb}MB!`)
     return false
   }
   return false // 阻止自动上传
@@ -407,10 +517,19 @@ const editImage = (row) => {
     id: row.id,
     originalName: row.originalName,
     fileUrl: row.fileUrl,
+    contentType: row.contentType,
     file: null,
     previewUrl: '',
     category: row.category || '',
     description: row.description || ''
+  }
+
+  const name = String(row.originalName || '').toLowerCase()
+  const ct = String(row.contentType || '').toLowerCase()
+  isEditingGlb.value = name.endsWith('.glb') || ct === 'model/gltf-binary'
+  glbPanelOpen.value = isEditingGlb.value ? ['glb'] : []
+  if (isEditingGlb.value) {
+    loadGlbConfig(row.id)
   }
   showEditDialog.value = true
 }

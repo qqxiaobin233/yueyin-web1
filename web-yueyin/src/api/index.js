@@ -218,6 +218,21 @@ export const assetApi = {
   }
 }
 
+// GLB 展示配置 API（仅配置，不包含上传逻辑）
+export const glbConfigApi = {
+  getByAssetImageId(assetImageId) {
+    return api.get('/assets/glb-config', { params: { assetImageId } })
+  },
+
+  saveByAssetImageId(assetImageId, data) {
+    return api.put('/assets/glb-config', data, { params: { assetImageId } })
+  },
+
+  deleteByAssetImageId(assetImageId) {
+    return api.delete('/assets/glb-config', { params: { assetImageId } })
+  }
+}
+
 // 粤语测试题目管理API
 export const cantoneseTestApi = {
   importQuestions(formData) {
