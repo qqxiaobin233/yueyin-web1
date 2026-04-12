@@ -1,8 +1,11 @@
 import axios from 'axios'
 
+const API_BASE_URL = 'http://8.138.10.215:8081/api'
+// const API_BASE_URL = 'http://localhost:8080/api'
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api', // 使用相对路径，通过Vite代理转发
+  baseURL: API_BASE_URL,
   timeout: 15000 // 增加超时时间
 })
 
