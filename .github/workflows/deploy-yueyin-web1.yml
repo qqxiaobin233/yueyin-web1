@@ -1,4 +1,4 @@
-name: Deploy Frontend Web1 (yueyin-web)
+name: Deploy Frontend Web2 (yueyin-houtai-qianduan)
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - main
       - master
     paths:
-      - 'yueyin-web/**'
+      - '**'
       - '.github/workflows/deploy-yueyin-web1.yml'
 
 jobs:
@@ -23,19 +23,17 @@ jobs:
         with:
           node-version: '20.19.0'
           cache: npm
-          cache-dependency-path: yueyin-web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install Dependencies
-        working-directory: yueyin-web
         run: |
           if [ ! -f package-lock.json ]; then
-            echo "ERROR: package-lock.json not found. Please run 'npm install' locally in yueyin-web and commit package-lock.json." >&2
+            echo "ERROR: package-lock.json not found. Please run 'npm install' locally and commit package-lock.json." >&2
             exit 1
           fi
           npm ci
 
       - name: Build
-        working-directory: yueyin-web
         run: npm run build
 
       - name: Clean Target Directory
@@ -47,8 +45,8 @@ jobs:
           port: 22
           script: |
             set -e
-            mkdir -p /www/wwwroot/yueyin-web1
-            rm -rf /www/wwwroot/yueyin-web1/*
+            mkdir -p /www/wwwroot/yueyin-web2
+            rm -rf /www/wwwroot/yueyin-web2/*
 
       - name: Upload Static Files
         uses: appleboy/scp-action@v0.1.7
@@ -57,9 +55,9 @@ jobs:
           username: root
           password: ${{ secrets.SERVER_PASSWORD }}
           port: 22
-          source: yueyin-web/dist/*
-          target: /www/wwwroot/yueyin-web1
-          strip_components: 2
+          source: dist/*
+          target: /www/wwwroot/yueyin-web2
+          strip_components: 1
           overwrite: true
 
       - name: Fix Permissions
@@ -71,4 +69,4 @@ jobs:
           port: 22
           script: |
             set -e
-            chown -R www:www /www/wwwroot/yueyin-web1
+            chown -R www:www /www/wwwroot/yueyin-web2
