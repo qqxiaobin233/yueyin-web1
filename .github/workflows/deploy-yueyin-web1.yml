@@ -1,0 +1,74 @@
+name: Deploy Frontend Web1 (yueyin-web)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'yueyin-web/**'
+      - '.github/workflows/deploy-yueyin-web1.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: npm
+          cache-dependency-path: yueyin-web/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: yueyin-web
+        run: |
+          if [ ! -f package-lock.json ]; then
+            echo "ERROR: package-lock.json not found. Please run 'npm install' locally in yueyin-web and commit package-lock.json." >&2
+            exit 1
+          fi
+          npm ci
+
+      - name: Build
+        working-directory: yueyin-web
+        run: npm run build
+
+      - name: Clean Target Directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            mkdir -p /www/wwwroot/yueyin-web1
+            rm -rf /www/wwwroot/yueyin-web1/*
+
+      - name: Upload Static Files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          source: yueyin-web/dist/*
+          target: /www/wwwroot/yueyin-web1
+          strip_components: 2
+          overwrite: true
+
+      - name: Fix Permissions
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            chown -R www:www /www/wwwroot/yueyin-web1
