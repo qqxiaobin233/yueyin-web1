@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://8.138.10.215:8081/api'
+// const API_BASE_URL = 'http://8.138.10.215:8081/api'
+const API_BASE_URL = 'https://api-yueyin.qqxiaobin.top/api'
 // const API_BASE_URL = 'http://localhost:8080/api'
 
 // 创建axios实例
