@@ -40,7 +40,7 @@
         </div>
 
         <div class="toolbar-right">
-          <el-select v-model="filters.sceneId" placeholder="场景" clearable style="width: 160px" @change="handleFilterChange">
+          <el-select v-model="filters.sceneId" placeholder="场景" clearable class="toolbar-select" @change="handleFilterChange">
             <el-option
               v-for="s in scenes"
               :key="s.id"
@@ -49,7 +49,7 @@
             />
           </el-select>
 
-          <el-select v-model="filters.levelNo" placeholder="关卡" clearable style="width: 140px" @change="handleFilterChange">
+          <el-select v-model="filters.levelNo" placeholder="关卡" clearable class="toolbar-select" @change="handleFilterChange">
             <el-option label="第1关" :value="1" />
             <el-option label="第2关" :value="2" />
             <el-option label="第3关" :value="3" />
@@ -94,7 +94,7 @@
         <el-table-column prop="stemYue" label="题干粤语" min-width="200" show-overflow-tooltip />
         <el-table-column prop="audioOssUrl" label="题干音频" min-width="180" show-overflow-tooltip />
         <el-table-column prop="imageUrlsJson" label="图片" min-width="160" show-overflow-tooltip />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="180" :fixed="isMobile ? false : 'right'">
           <template #default="scope">
             <el-button
               v-if="scope.row.questionType === 1"
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
@@ -172,6 +172,12 @@ const pagination = reactive({
   pageSize: 10,
   total: 0
 })
+
+const isMobile = ref(false)
+
+const updateIsMobile = () => {
+  isMobile.value = window.matchMedia('(max-width: 768px)').matches
+}
 
 const importing = ref(false)
 const ttsLoading = ref(false)
@@ -602,8 +608,14 @@ const handleRegenerateTts = async () => {
 }
 
 onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
   loadScenes()
   loadTable()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
 })
 </script>
 

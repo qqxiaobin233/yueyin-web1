@@ -38,7 +38,7 @@
         </div>
 
         <div class="toolbar-right">
-          <el-select v-model="filters.level" placeholder="等级" clearable style="width: 140px" @change="loadData">
+          <el-select v-model="filters.level" placeholder="等级" clearable class="toolbar-select" @change="loadData">
             <el-option label="定级测试" value="定级测试" />
             <el-option label="Level1" value="Level1" />
             <el-option label="Level2" value="Level2" />
@@ -46,7 +46,7 @@
             <el-option label="Level4" value="Level4" />
           </el-select>
 
-          <el-select v-model="filters.questionType" placeholder="题型" clearable style="width: 140px" @change="loadData">
+          <el-select v-model="filters.questionType" placeholder="题型" clearable class="toolbar-select" @change="loadData">
             <el-option label="听力" value="听力" />
             <el-option label="词汇" value="词汇" />
             <el-option label="语法" value="语法" />
@@ -82,7 +82,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="220" :fixed="isMobile ? false : 'right'">
           <template #default="scope">
             <el-button link type="primary" @click="openView(scope.row)">查看</el-button>
             <el-button link type="primary" @click="openEdit(scope.row)">编辑</el-button>
@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as XLSX from 'xlsx'
 import { cantoneseTestApi } from '@/api'
@@ -180,6 +180,12 @@ const loading = ref(false)
 const importing = ref(false)
 const ttsLoading = ref(false)
 const regenLoading = ref(false)
+
+const isMobile = ref(false)
+
+const updateIsMobile = () => {
+  isMobile.value = window.matchMedia('(max-width: 768px)').matches
+}
 
 const filters = reactive({
   level: '',
@@ -514,7 +520,13 @@ const handleBatchDelete = async () => {
 }
 
 onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
   loadData()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
 })
 </script>
 

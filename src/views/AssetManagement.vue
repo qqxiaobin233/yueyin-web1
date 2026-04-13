@@ -75,7 +75,7 @@
             {{ formatDateTime(scope.row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" :fixed="isMobile ? false : 'right'">
           <template #default="scope">
             <el-button size="small" type="primary" @click="editImage(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteImage(scope.row)">删除</el-button>
@@ -230,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { assetApi, glbConfigApi } from '@/api'
@@ -249,6 +249,12 @@ const pagination = ref({
   pageSize: 10,
   total: 0
 })
+
+const isMobile = ref(false)
+
+const updateIsMobile = () => {
+  isMobile.value = window.matchMedia('(max-width: 768px)').matches
+}
 
 const isEditingGlb = ref(false)
 const glbPanelOpen = ref([])
@@ -641,7 +647,13 @@ const formatDateTime = (dateTime) => {
 }
 
 onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
   loadImageList()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
 })
 </script>
 
@@ -660,6 +672,23 @@ onMounted(() => {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .search-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 10px;
+    padding-bottom: 2px;
+  }
+
+  .search-bar :deep(.el-input),
+  .search-bar :deep(.el-select),
+  .search-bar :deep(.el-button) {
+    flex-shrink: 0;
+  }
 }
 
 .image-uploader {

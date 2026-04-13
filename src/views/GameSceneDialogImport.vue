@@ -20,7 +20,7 @@
         </div>
 
         <div class="toolbar-right">
-          <el-select v-model="filters.sceneId" placeholder="场景" clearable style="width: 180px" @change="handleFilterChange">
+          <el-select v-model="filters.sceneId" placeholder="场景" clearable class="toolbar-select" @change="handleFilterChange">
             <el-option
               v-for="s in scenes"
               :key="s.id"
